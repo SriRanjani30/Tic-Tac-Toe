@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic-Tac-Toe Game</title>
+    <title>Advanced Tic-Tac-Toe Game</title>
     <style>
         body {
             display: flex;
@@ -11,7 +11,7 @@
             align-items: center;
             height: 100vh;
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            background-color: #f5f5f5;
             margin: 0;
             padding: 0;
         }
@@ -21,25 +21,25 @@
             padding: 20px;
             background-color: #ffffff;
             border-radius: 10px;
-            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-            width: 325px;
+            box-shadow: 2px 2px 15px rgba(0, 0, 0, 0.2);
+            width: 360px;
             height: auto;
         }
         .title {
-            font-size: 2em;
+            font-size: 2.2em;
             margin-bottom: 15px;
-            color: #333;
+            color: #444;
             text-transform: uppercase;
         }
         .board {
             display: grid;
-            grid-template-columns: 100px 100px 100px;
-            grid-template-rows: 100px 100px 100px;
-            gap: 5px;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 10px;
             margin-bottom: 20px;
-            border: 2px solid #333;
-            padding: 5px;
-            background-color: #e0e0e0;
+            border: 2px solid #666;
+            padding: 10px;
+            background-color: #e8e8e8;
         }
         .cell {
             width: 100px;
@@ -47,35 +47,72 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 2em;
+            font-size: 2.5em;
             background-color: #ffffff;
-            border: 1px solid #333;
+            border: 1px solid #444;
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out;
-            color: #000;
+            transition: background-color 0.3s, transform 0.2s;
+            color: #222;
         }
         .cell:hover {
             background-color: #d0d0d0;
+            transform: scale(1.05);
         }
         .message {
-            font-size: 1.5em;
+            font-size: 1.6em;
             margin-bottom: 20px;
             font-weight: bold;
-            color: #333;
+            color: #222;
         }
         .reset-btn {
-            padding: 10px 20px;
+            padding: 12px 24px;
+            font-size: 1.1em;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        .reset-btn:hover {
+            background-color: #1976D2;
+        }
+        .history {
             font-size: 1em;
-            background-color: #4CAF50;
+            color: #555;
+            margin-top: 10px;
+        }
+        .history ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .history li {
+            margin: 5px 0;
+        }
+        .clear-history-btn {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            background-color: #f44336;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             margin-top: 10px;
-            margin-bottom: 15px;
         }
-        .reset-btn:hover {
-            background-color: #45a049;
+        .clear-history-btn:hover {
+            background-color: #d32f2f;
+        }
+        .player-stats {
+            margin-top: 20px;
+            font-size: 1em;
+            color: #444;
+        }
+        .player-stats div {
+            margin: 5px 0;
+        }
+        .player-stats span {
+            font-weight: bold;
         }
     </style>
 </head>
@@ -95,14 +132,32 @@
             <div class="cell" data-index="8"></div>
         </div>
         <button class="reset-btn" onclick="resetGame()">Reset Game</button>
+        <div class="history" id="history">
+            <h3>Game History:</h3>
+            <ul id="historyList"></ul>
+            <button class="clear-history-btn" onclick="clearHistory()">Clear History</button>
+        </div>
+        <div class="player-stats" id="playerStats">
+            <div>Player X Wins: <span id="playerXWins">0</span></div>
+            <div>Player O Wins: <span id="playerOWins">0</span></div>
+            <div>Draws: <span id="draws">0</span></div>
+        </div>
     </div>
     <script>
         const board = document.getElementById('board');
         const cells = document.querySelectorAll('.cell');
         const message = document.getElementById('message');
+        const historyList = document.getElementById('historyList');
+        const playerXWinsElement = document.getElementById('playerXWins');
+        const playerOWinsElement = document.getElementById('playerOWins');
+        const drawsElement = document.getElementById('draws');
         let currentPlayer = 'X';
         let gameActive = true;
         let gameState = ['', '', '', '', '', '', '', '', ''];
+        let gameHistory = [];
+        let playerXWins = 0;
+        let playerOWins = 0;
+        let draws = 0;
         const winningConditions = [
             [0, 1, 2],
             [3, 4, 5],
@@ -116,6 +171,7 @@
         function handleCellClick(event) {
             const clickedCell = event.target;
             const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+
             if (gameState[clickedCellIndex] !== '' || !gameActive) {
                 return;
             }
@@ -124,43 +180,54 @@
             if (checkWin()) {
                 message.textContent = `Player ${currentPlayer} Wins!`;
                 gameActive = false;
+                addHistory(`Player ${currentPlayer} won the game.`);
+                updateStats(currentPlayer);
                 return;
             }
             if (gameState.every(cell => cell !== '')) {
                 message.textContent = 'Draw!';
                 gameActive = false;
+                addHistory('The game ended in a draw.');
+                draws++;
+                drawsElement.textContent = draws;
                 return;
             }
             currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
             message.textContent = `Player ${currentPlayer}'s turn`;
         }
         function checkWin() {
-            for (let i = 0; i < winningConditions.length; i++) {
-                const winCondition = winningConditions[i];
-                let a = gameState[winCondition[0]];
-                let b = gameState[winCondition[1]];
-                let c = gameState[winCondition[2]];
-                if (a === '' || b === '' || c === '') {
-                    continue;
-                }
-                if (a === b && b === c) {
-                    return true;
-                }
-            }
-            return false;
+            return winningConditions.some(condition => {
+                const [a, b, c] = condition;
+                return gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c];
+            });
         }
         function resetGame() {
             gameActive = true;
             currentPlayer = 'X';
             gameState = ['', '', '', '', '', '', '', '', ''];
             message.textContent = `Player ${currentPlayer}'s turn`;
-            cells.forEach(function(cell) {
-                cell.textContent = '';
-            });
+            cells.forEach(cell => cell.textContent = '');
         }
-        cells.forEach(function(cell) {
-            cell.addEventListener('click', handleCellClick);
-        });
+        function addHistory(entry) {
+            const listItem = document.createElement('li');
+            listItem.textContent = entry;
+            historyList.appendChild(listItem);
+            gameHistory.push(entry);
+        }
+        function clearHistory() {
+            historyList.innerHTML = '';
+            gameHistory = [];
+        }
+        function updateStats(winner) {
+            if (winner === 'X') {
+                playerXWins++;
+                playerXWinsElement.textContent = playerXWins;
+            } else if (winner === 'O') {
+                playerOWins++;
+                playerOWinsElement.textContent = playerOWins;
+            }
+        }
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
     </script>
 </body>
 </html>
